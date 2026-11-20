@@ -1,0 +1,70 @@
+// PROFNSI - Plateforme personnelle d'évaluation NSI
+// Schéma de base de données (PostgreSQL — pour Vercel Postgres / Neon / Supabase)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Un seul compte professeur existe sur la plateforme.
+model Teacher {
+  id           String   @id @default("profnsi")
+  username     String   @unique
+  passwordHash String
+  email        String   @default("profnsi27@gmail.com")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Exam {
+  id           String   @id @default(cuid())
+  title        String
+  level        String   // "premiere" | "terminale"
+  duration     Int      // durée en minutes
+  scale        Int      @default(20) // barème sur 20
+  instructions String?
+  competences  String?  // JSON : liste des compétences évaluées
+  exercises    String   // JSON : [{ id, title, type(s) autorisé(s), points, prompt }]
+  accessCode   String   @unique
+  status       String   @default("draft") // draft | open | closed | archived
+  subjectPdf   String?  // référence de stockage (Blob URL ou chemin local)
+  correctionPdf String? // référence de stockage
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  copies       Copy[]
+}
+
+model Copy {
+  id              String    @id @default(cuid())
+  examId          String
+  exam            Exam      @relation(fields: [examId], references: [id], onDelete: Cascade)
+  studentName     String
+  studentFirstname String
+  className       String
+  sessionId       String    @unique
+  startTime       DateTime  @default(now())
+  endTime         DateTime?
+  status          String    @default("in_progress") // in_progress | submitted | grading | graded | validated
+  answers         String    @default("{}") // JSON : réponses par cellule
+  events          String    @default("[]") // JSON : journal anti-triche
+  grade           Float?
+  gradeBreakdown  String?   // JSON : [{ exerciseId, points, max, justification, ... }]
+  correction      String?   // JSON : correction détaillée IA
+  correctionPdf   String?   // référence de stockage du PDF corrigé généré
+  emailSent       Boolean   @default(false)
+  emailError      String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Settings {
+  id          String   @id @default("default")
+  aiModel     String   @default("auto") // modèle IA sélectionné
+  teacherEmail String  @default("profnsi27@gmail.com")
+  emailConfigured Boolean @default(false)
+  updatedAt   DateTime @updatedAt
+}
